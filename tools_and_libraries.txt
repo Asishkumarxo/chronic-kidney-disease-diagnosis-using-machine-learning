@@ -1,0 +1,529 @@
+Tools and Libraries Used
+Machine Learning-Based Chronic Kidney Disease Prediction and Clinical Staging System
+
+================================================================================
+INTRODUCTION
+================================================================================
+
+The development of the NephroAI system — a Machine Learning-Based Chronic Kidney
+Disease Prediction and Clinical Staging system — required a carefully selected
+combination of programming languages, data processing libraries, machine learning
+frameworks, web development technologies, and documentation tools.
+
+Each tool described in this document contributes to a specific phase of the
+project, including data collection, preprocessing, exploratory analysis, model
+development, model evaluation, GFR computation, REST API hosting, frontend
+clinical dashboard development, and final project documentation.
+
+This document provides an exhaustive reference of every tool, library, module,
+and import used across all source files in this project.
+
+================================================================================
+SECTION 1: PROGRAMMING LANGUAGES
+================================================================================
+
+1. Python (Version 3.10+)
+   Purpose: Primary programming language for the entire ML pipeline and backend.
+   Python is used for data loading, cleaning, feature engineering, model training,
+   model evaluation, prediction logic, and Flask API server development. It was
+   selected for its extensive library ecosystem, clean syntax, and dominance in
+   the data science and AI community.
+   Used In: src/clean_data.py, src/train_model.py, src/predict.py, backend/app.py
+
+2. HTML5
+   Purpose: Structure and markup language for the web-based clinical dashboard.
+   HTML5 is used to define the semantic page layout, tabbed input panels,
+   interactive form elements, SVG-based circular gauge, and accessibility
+   attributes (ARIA roles and labels) of the NephroAI frontend interface.
+   Used In: frontend/index.html
+
+3. CSS3
+   Purpose: Styling and visual design of the clinical user interface.
+   Vanilla CSS3 is used for all layout (grid, flexbox), color theming, dark mode
+   styling, animations, tab transitions, gauge rendering, badge styling,
+   and responsive design across the NephroAI dashboard.
+   Used In: frontend/style.css
+
+4. JavaScript (ES6+)
+   Purpose: Client-side logic and backend communication.
+   Vanilla JavaScript handles tab navigation, preset patient loading, form data
+   collection, asynchronous HTTP calls to the Flask backend, animated gauge
+   rendering, risk factor bar animation, and server status polling.
+   Used In: frontend/app.js
+
+================================================================================
+SECTION 2: PYTHON STANDARD LIBRARY MODULES
+================================================================================
+
+These are built-in Python modules used without any external installation.
+
+1. os
+   Purpose: Operating system path utilities.
+   Used to construct file paths, check if files exist (os.path.exists),
+   create directories (os.makedirs), and locate model and dataset files.
+   Import: import os
+   Used In: src/clean_data.py, src/train_model.py, src/predict.py, backend/app.py
+
+2. sys
+   Purpose: System-level access and interpreter control.
+   Used for potential command-line argument handling and system-level
+   runtime access during script execution.
+   Import: import sys
+   Used In: src/predict.py
+
+================================================================================
+SECTION 3: PYTHON DATA SCIENCE LIBRARIES
+================================================================================
+
+3.1 Pandas (pandas >= 2.0.0)
+    Purpose: Data loading, manipulation, and preprocessing.
+    Pandas is the primary data handling library used throughout the project.
+    It provides the DataFrame and Series data structures essential for reading,
+    cleaning, filtering, and transforming the CKD clinical dataset.
+
+    Modules / Functions Used:
+    - pandas.read_csv()          : Load CSV datasets from disk
+    - DataFrame.columns          : Access and rename column names
+    - DataFrame.str.strip()      : Strip whitespace from string columns
+    - DataFrame.str.replace()    : Replace unicode en-dash characters in labels
+    - DataFrame.str.capitalize() : Standardize Yes/No categorical fields
+    - DataFrame.map()            : Map target label strings to integer class codes
+    - DataFrame.dropna()         : Drop rows with unmapped or null target values
+    - DataFrame.astype()         : Convert column data types (e.g., float to int)
+    - DataFrame.isnull()         : Detect missing values
+    - DataFrame.fillna()         : Impute missing values using median or mode
+    - DataFrame.drop()           : Remove columns (eGFR, Target) from feature set
+    - DataFrame.select_dtypes()  : Filter columns by data type
+    - DataFrame.to_csv()         : Export cleaned DataFrame to CSV
+    - DataFrame.shape            : Inspect row/column dimensions
+    - Series.value_counts()      : Count unique values in a column
+    - Series.median()            : Calculate median for imputation
+    - Series.mode()              : Calculate mode for categorical imputation
+    - pandas.DataFrame([dict])   : Convert patient dictionary to single-row DF
+    - pandas.isna()              : Check for NaN values in patient inputs
+
+    Import: import pandas as pd
+    Used In: src/clean_data.py, src/train_model.py, src/predict.py, backend/app.py
+
+3.2 NumPy (numpy >= 1.24.0)
+    Purpose: Numerical computing and array operations.
+    NumPy powers the underlying numerical computations, array-level operations,
+    and mathematical calculations used throughout the project.
+
+    Modules / Functions Used:
+    - numpy.nan                  : Represent missing values as NaN for safe parsing
+    - numpy.mean()               : Compute mean cross-validation scores
+    - numpy.std()                : Compute standard deviation of CV scores
+    - numpy.abs()                : Compute absolute values of Logistic Regression
+                                   coefficients for feature importance extraction
+    - numpy.array operations     : Used internally by scikit-learn for model math
+    - min() / max() (NumPy-aware): Used in the 2021 CKD-EPI GFR formula
+
+    Import: import numpy as np
+    Used In: src/train_model.py, backend/app.py
+
+================================================================================
+SECTION 4: MACHINE LEARNING LIBRARY — SCIKIT-LEARN (scikit-learn >= 1.2.0)
+================================================================================
+
+Scikit-learn is the core machine learning library of this project. All
+classification algorithms, preprocessing steps, and evaluation metrics are
+sourced from scikit-learn. The full trained ML system is stored as a single
+sklearn Pipeline object.
+
+4.1 Model Selection Module
+    sklearn.model_selection
+
+    - train_test_split
+      Purpose: Utility to split datasets into training and testing subsets.
+      Note: Not directly used for the final split (pre-split CSVs are provided),
+      but imported for availability.
+      Import: from sklearn.model_selection import train_test_split
+
+    - cross_val_score
+      Purpose: Performs k-fold cross-validation on a pipeline/estimator to
+      produce reliable performance scores without data leakage.
+      Used for 5-fold CV comparison of all three classifier candidates.
+      Import: from sklearn.model_selection import cross_val_score
+      Used In: src/train_model.py
+
+4.2 Preprocessing Module
+    sklearn.preprocessing
+
+    - StandardScaler
+      Purpose: Standardizes numeric features by removing the mean and scaling
+      to unit variance (Z-score normalization). Ensures all numeric biomarkers
+      contribute equally to model training regardless of their original units.
+      Import: from sklearn.preprocessing import StandardScaler
+      Used In: src/train_model.py (via Pipeline)
+
+    - OneHotEncoder
+      Purpose: Converts categorical features (Gender, Diabetes, Hypertension,
+      Smoking_Status, Family_History_Kidney) into binary numeric columns.
+      Parameters: handle_unknown='ignore', sparse_output=False
+      Import: from sklearn.preprocessing import OneHotEncoder
+      Used In: src/train_model.py (via Pipeline)
+
+4.3 Imputation Module
+    sklearn.impute
+
+    - SimpleImputer
+      Purpose: Fills missing values in the dataset.
+      Two strategies are used:
+        * strategy='median'       : For numeric columns — robust to outliers
+        * strategy='most_frequent': For categorical columns — fills with mode
+      Import: from sklearn.impute import SimpleImputer
+      Used In: src/train_model.py (via Pipeline)
+
+4.4 Pipeline & Compose Modules
+    sklearn.pipeline / sklearn.compose
+
+    - Pipeline
+      Purpose: Chains preprocessing and classification steps into a single,
+      serializable object. Used twice:
+        * Inner numeric transformer pipeline (Imputer → Scaler)
+        * Inner categorical transformer pipeline (Imputer → OneHotEncoder)
+        * Outer pipeline (ColumnTransformer → Classifier)
+      Import: from sklearn.pipeline import Pipeline
+      Used In: src/train_model.py, backend/app.py (loaded via joblib)
+
+    - ColumnTransformer
+      Purpose: Applies different preprocessing pipelines to different column
+      subsets simultaneously. Maps numeric columns to the numeric transformer
+      and categorical columns to the categorical transformer.
+      Import: from sklearn.compose import ColumnTransformer
+      Used In: src/train_model.py
+
+4.5 Ensemble Module
+    sklearn.ensemble
+
+    - RandomForestClassifier
+      Purpose: Primary multi-class ensemble classifier. Builds multiple decision
+      trees on bootstrapped data samples and aggregates their predictions.
+      Parameters: random_state=42, n_estimators=100, class_weight='balanced'
+      The 'balanced' weight corrects for potential class imbalances by adjusting
+      class weights inversely proportional to class frequencies.
+      Selected as the best model with 100% test accuracy and ROC-AUC of 1.0.
+      Import: from sklearn.ensemble import RandomForestClassifier
+      Used In: src/train_model.py
+
+    - GradientBoostingClassifier
+      Purpose: Candidate classifier — builds trees sequentially, each correcting
+      errors of the previous. Evaluated during 5-fold CV comparison.
+      Parameters: random_state=42, n_estimators=100
+      Import: from sklearn.ensemble import GradientBoostingClassifier
+      Used In: src/train_model.py
+
+4.6 Linear Model Module
+    sklearn.linear_model
+
+    - LogisticRegression
+      Purpose: Candidate classifier — regularized linear model for multi-class
+      classification. Evaluated during 5-fold CV comparison.
+      Parameters: random_state=42, max_iter=2000, class_weight='balanced'
+      Import: from sklearn.linear_model import LogisticRegression
+      Used In: src/train_model.py
+
+4.7 Metrics Module
+    sklearn.metrics
+
+    - accuracy_score
+      Purpose: Computes the overall fraction of correctly classified samples.
+      Used to evaluate the best model on the independent test set.
+      Import: from sklearn.metrics import accuracy_score
+      Used In: src/train_model.py
+
+    - roc_auc_score
+      Purpose: Computes the multi-class Area Under the ROC Curve.
+      Parameters: multi_class='ovr', average='weighted'
+      Provides a robust measure of how well the model distinguishes between
+      all five CKD staging classes.
+      Import: from sklearn.metrics import roc_auc_score
+      Used In: src/train_model.py
+
+    - classification_report
+      Purpose: Generates a full text report showing precision, recall, F1-score,
+      and support for each of the five target classes.
+      Import: from sklearn.metrics import classification_report
+      Used In: src/train_model.py
+
+4.8 Scikit-learn Attributes Used at Inference Time (backend/app.py)
+    These are attributes accessed on the loaded pipeline object during prediction:
+
+    - pipeline.predict(df)               : Returns predicted class integer (0-4)
+    - pipeline.predict_proba(df)         : Returns probability array for all 5 classes
+    - pipeline.named_steps['classifier'] : Access classifier step from pipeline
+    - pipeline.named_steps['preprocessor']: Access preprocessor step
+    - clf.feature_importances_           : Global feature importances (Random Forest)
+    - clf.coef_                          : Coefficients fallback (Logistic Regression)
+    - preprocessor.named_transformers_['cat']: Access categorical transformer
+    - cat_encoder.get_feature_names_out(): Retrieve OHE column names
+
+================================================================================
+SECTION 5: MODEL SERIALIZATION LIBRARY
+================================================================================
+
+5. Joblib (joblib >= 1.2.0)
+   Purpose: Efficient serialization and deserialization of Python objects,
+   especially large NumPy arrays embedded in scikit-learn pipelines.
+
+   Functions Used:
+   - joblib.dump(pipeline, path)  : Serialize and save the trained pipeline
+   - joblib.load(path)            : Deserialize and load the trained pipeline
+                                    for serving predictions via Flask API
+
+   Import: import joblib
+   Used In: src/train_model.py, src/predict.py, backend/app.py
+
+================================================================================
+SECTION 6: WEB FRAMEWORK AND API LIBRARIES
+================================================================================
+
+6.1 Flask (flask == 3.0.3)
+    Purpose: Lightweight Python web framework used to build the REST API backend.
+    Flask handles HTTP request routing, JSON parsing, static file serving, and
+    response building for the NephroAI clinical prediction service.
+
+    Modules / Objects Used:
+    - Flask             : Core application factory class
+    - request           : Parses incoming HTTP request data (JSON body)
+    - jsonify           : Constructs JSON HTTP responses
+    - app.route()       : Decorator for defining URL endpoint handlers
+    - app.send_static_file(): Serves frontend/index.html from the Flask server
+    - app.run()         : Starts the Flask development server
+
+    Routes Defined:
+    - GET  /            : Serves the frontend index.html file (static)
+    - GET  /health      : Returns server + model health status JSON
+    - POST /predict     : Accepts patient data JSON, returns prediction JSON
+
+    Server Configuration:
+    - Static folder: ../frontend (serves HTML, CSS, JS as static files)
+    - Host: 0.0.0.0 (accessible on all network interfaces)
+    - Port: 5000
+    - Debug: True
+
+    Import: from flask import Flask, request, jsonify
+    Used In: backend/app.py
+
+6.2 Flask-CORS (flask-cors == 4.0.1)
+    Purpose: Enables Cross-Origin Resource Sharing (CORS) on the Flask server.
+    This allows the browser to make API calls to http://127.0.0.1:5000 even when
+    the frontend HTML is opened from a different origin (e.g., as a local
+    file:// path or from a different port during development).
+
+    Usage: CORS(app) applied globally to all routes.
+
+    Import: from flask_cors import CORS
+    Used In: backend/app.py
+
+================================================================================
+SECTION 7: FRONTEND TECHNOLOGIES (browser-native, no installation required)
+================================================================================
+
+7.1 Web APIs Used in JavaScript (frontend/app.js)
+
+    - document.addEventListener()    : Wait for DOM ready state
+    - document.getElementById()      : Retrieve form inputs, buttons, containers
+    - document.querySelectorAll()    : Select all tab buttons and panels
+    - document.createElement()       : Dynamically create risk factor DOM elements
+    - element.classList.add/remove() : Toggle active states on tabs, panels, badges
+    - element.setAttribute()         : Set ARIA attributes for accessibility
+    - element.innerHTML / textContent: Inject prediction results and labels
+    - element.style                  : Apply dynamic colors and widths to gauge/bars
+    - element.appendChild()          : Append generated risk factor items
+    - setTimeout()                   : Animate gauge fill and bar widths
+    - setInterval()                  : Repeating server status health check
+    - window.location.origin         : Detect if page is served from file:// or HTTP
+    - fetch() API                    : Asynchronous HTTP calls to /predict and /health
+    - async / await                  : Modern asynchronous control flow
+    - JSON.stringify() / .json()     : Serialize/deserialize JSON for API calls
+    - console.log / warn / error     : Developer debugging output
+    - alert()                        : User-facing error notification on failure
+
+7.2 SVG (Scalable Vector Graphics) — frontend/index.html
+    Used to render:
+    - The NephroAI logo (heart/kidney icon)
+    - Tab section header icons
+    - SVG circular gauge (gauge-track + gauge-fill circles)
+    - Submit button play icon
+    Attributes used: viewBox, cx, cy, r, stroke, stroke-dashoffset,
+                     stroke-dasharray, stroke-width, fill
+
+7.3 ARIA Accessibility Attributes — frontend/index.html
+    - role="tablist", role="tab", role="tabpanel"
+    - aria-selected, aria-controls, aria-labelledby
+    - class="sr-only" (visually hidden headings for screen readers)
+
+================================================================================
+SECTION 8: DATASET AND DATA FORMAT SUPPORT
+================================================================================
+
+8.1 CSV (Comma-Separated Values)
+    Format used for the main Kaggle CKD Clinical Dataset.
+    - Training_CKD_dataset.csv        : 21,000 raw training records
+    - Training_CKD_dataset_clean.csv  : 21,000 cleaned records
+    - Testing_CKD_dataset.csv         : 4,800 raw testing records
+    - Testing_CKD_dataset_clean.csv   : 4,800 cleaned records
+    Read via: pandas.read_csv() with encoding='utf-8'
+    Written via: DataFrame.to_csv() with index=False
+
+8.2 ARFF (Attribute-Relation File Format)
+    Format used by the UCI Machine Learning Repository for the original
+    reference CKD dataset (400 records, binary classification).
+    Files: chronic_kidney_disease.arff, chronic_kidney_disease_full.arff,
+           chronic_kidney_disease_clean.arff, etc.
+    Used for: Reference and comparison purposes (not for model training).
+
+8.3 Joblib Binary Format (.joblib)
+    Format used to persist the trained scikit-learn pipeline.
+    - models/ckd_stage_model.joblib   : Active multi-class RF pipeline (371 KB)
+    - models/ckd_model.joblib         : Legacy binary CKD model (7.6 KB)
+
+8.4 Dataset Source
+    Platform: Kaggle
+    URL: https://www.kaggle.com/datasets/priyankabarik/chronic-kidney-disease-ckd-clinical-dataset
+    Records: 25,800 total (21,000 training / 4,800 testing)
+    Features: 35 clinical attributes + 1 target variable (5-class CKD staging)
+
+================================================================================
+SECTION 9: CLINICAL / MATHEMATICAL FORMULA
+================================================================================
+
+9. 2021 CKD-EPI Creatinine Equation (Race-Free)
+   Purpose: Compute the estimated Glomerular Filtration Rate (eGFR) in
+   real-time at prediction time without relying on the pre-computed eGFR
+   column in the dataset (which would constitute data leakage if used in training).
+
+   Formula implemented in: backend/app.py — function calculate_ckd_epi()
+
+   Variables:
+   - age        : Patient age in years
+   - gender     : 1 = Male, 0 = Female
+   - creatinine : Serum creatinine in mg/dL
+
+   Gender-specific constants:
+   - Male   : k = 0.9,  alpha = -0.302, gender_mult = 1.000
+   - Female : k = 0.7,  alpha = -0.241, gender_mult = 1.012
+
+   Formula:
+   GFR = 142 × min(Cr/k, 1)^alpha × max(Cr/k, 1)^(-1.200) × 0.9938^age × gender_mult
+
+   Python math functions used:
+   - min(creatinine / k, 1) ** alpha      : Low creatinine term
+   - max(creatinine / k, 1) ** -1.200     : High creatinine term
+   - 0.9938 ** age                        : Age-decay term
+
+   Standard: 2021 CKD-EPI race-free creatinine equation
+   Reference: Inker et al., NEJM 2021
+
+================================================================================
+SECTION 10: DEVELOPMENT TOOLS
+================================================================================
+
+10.1 Visual Studio Code (VS Code)
+     Purpose: Primary Integrated Development Environment (IDE).
+     Used for writing all Python scripts (ML pipeline), HTML/CSS/JavaScript
+     (frontend), configuration files, and documentation. Features used include
+     Python extension (linting, debugging), Pylance (type checking), Live Server
+     (frontend preview), integrated Git source control, and the integrated terminal.
+
+10.2 Python Virtual Environment (venv)
+     Purpose: Isolate project dependencies from the global Python installation.
+     Ensures reproducible package versions across different machines.
+     Created with: python -m venv venv
+     Activated with: venv\Scripts\activate (Windows PowerShell)
+     Dependencies installed from: backend/requirements.txt
+
+10.3 pip (Python Package Installer)
+     Purpose: Installs and manages all Python library dependencies.
+     Command: pip install -r backend/requirements.txt
+     Used to install: flask, flask-cors, pandas, numpy, scikit-learn,
+                      scipy, joblib
+
+10.4 Git
+     Purpose: Distributed version control system for tracking changes.
+     Used for: Committing code changes, branching, and maintaining project history.
+
+10.5 GitHub
+     Purpose: Cloud-based remote repository hosting.
+     Repository: https://github.com/Asishkumarxo/chronic-kidney-disease-diagnosis-using-machine-learning
+     Used for: Remote code backup, version history, and project sharing.
+
+10.6 Windows PowerShell
+     Purpose: Command-line interface for running Python scripts and the Flask server.
+     Commands used: python src/clean_data.py, python src/train_model.py,
+                    python backend/app.py
+
+================================================================================
+SECTION 11: DOCUMENTATION AND PRESENTATION TOOLS
+================================================================================
+
+11.1 Microsoft Word
+     Purpose: Project report writing and formal academic documentation.
+     Used to write the Introduction, Literature Review, Methodology, Results,
+     and Conclusion chapters of the project report.
+
+11.2 Microsoft PowerPoint
+     Purpose: Final project presentation design.
+     Used to prepare slides covering the problem statement, methodology,
+     system architecture, experimental results, model performance, and conclusions.
+
+11.3 Draw.io (diagrams.net)
+     Purpose: Visual diagram creation tool.
+     Used to create the system architecture diagram, ML pipeline flowchart,
+     data preprocessing flow, and deployment diagram for the project documentation.
+
+================================================================================
+SECTION 12: COMPLETE SUMMARY TABLE
+================================================================================
+
+Category                 Tool / Library / Module            Version / Notes
+--------------------------------------------------------------------------------
+Programming Language     Python                             3.10+
+Programming Language     HTML5                              Web standard
+Programming Language     CSS3                               Web standard
+Programming Language     JavaScript (ES6+)                  Web standard
+Standard Library         os                                 Built-in Python
+Standard Library         sys                                Built-in Python
+Data Manipulation        pandas                             >= 2.0.0
+Numerical Computing      numpy                              >= 1.24.0
+ML — Model Selection     sklearn.model_selection            >= 1.2.0
+ML — CV                  cross_val_score                    scikit-learn
+ML — Split               train_test_split                   scikit-learn
+ML — Preprocessing       StandardScaler                     scikit-learn
+ML — Preprocessing       OneHotEncoder                      scikit-learn
+ML — Imputation          SimpleImputer                      scikit-learn
+ML — Pipeline            Pipeline                           scikit-learn
+ML — Pipeline            ColumnTransformer                  scikit-learn
+ML — Classifier          RandomForestClassifier             scikit-learn
+ML — Classifier          GradientBoostingClassifier         scikit-learn
+ML — Classifier          LogisticRegression                 scikit-learn
+ML — Metrics             accuracy_score                     scikit-learn
+ML — Metrics             roc_auc_score                      scikit-learn
+ML — Metrics             classification_report              scikit-learn
+Model Persistence        joblib                             >= 1.2.0
+Backend Framework        Flask                              == 3.0.3
+Backend Security         Flask-CORS                         == 4.0.1
+Scientific Computing     scipy                              >= 1.10.0 (dependency)
+Clinical Formula         2021 CKD-EPI Creatinine Eq.        Race-free standard
+Browser API              fetch() API                        ES6 native
+Browser API              SVG                                HTML5 native
+Browser API              ARIA Attributes                    HTML5 native
+IDE                      Visual Studio Code                 Latest stable
+Package Manager          pip                                Built-in Python
+Environment              Python venv                        Built-in Python
+Version Control          Git                                Latest stable
+Repository Hosting       GitHub                             cloud.github.com
+Dataset Platform         Kaggle                             Online
+Data Format              CSV                                Kaggle dataset
+Data Format              ARFF                               UCI reference dataset
+Data Format              .joblib                            Serialized model
+Documentation            Microsoft Word                     MS Office
+Presentation             Microsoft PowerPoint               MS Office
+Diagram Design           Draw.io (diagrams.net)             Web / Desktop
+--------------------------------------------------------------------------------
+
+================================================================================
+END OF DOCUMENT
+================================================================================

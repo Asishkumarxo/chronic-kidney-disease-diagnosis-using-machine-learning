@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NephroAI - Advanced clinical machine learning dashboard for multi-class Chronic Kidney Disease (CKD) stage evaluation.">
+    <title>NephroAI - Chronic Kidney Disease Clinical Diagnostics</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                </svg>
+            </div>
+            <h1>NephroAI Diagnostics</h1>
+        </div>
+        <div class="server-status" id="server-status-container">
+            <div class="status-dot" id="server-status-dot"></div>
+            <span id="server-status-text">Connecting to server...</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Patient Simulator Presets -->
+        <section class="presets-section" aria-labelledby="presets-title">
+            <h2 class="section-title" id="presets-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle;">
+                    <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+                </svg>
+                Select Simulated Patient Preset
+            </h2>
+            <div class="presets-grid">
+                <article class="preset-card preset-healthy" id="preset-healthy-btn">
+                    <h3>Healthy Patient</h3>
+                    <p>35-year-old female with normal BMI (22), standard blood pressure, 100% normal blood markers, and zero kidney symptoms.</p>
+                </article>
+                <article class="preset-card preset-moderate" id="preset-moderate-btn">
+                    <h3>Moderate CKD (Stage 3)</h3>
+                    <p>55-year-old male with hypertension, slightly elevated creatinine (1.8 mg/dL) and urea, microalbuminuria, and mild anemia.</p>
+                </article>
+                <article class="preset-card preset-severe" id="preset-severe-btn">
+                    <h3>End-Stage Renal Failure (Stage 5)</h3>
+                    <p>65-year-old female with diabetes & hypertension, severe creatinine (4.5 mg/dL), severe anemia, high ACR, and multiple abnormal blood metrics.</p>
+                </article>
+            </div>
+        </section>
+
+        <!-- Diagnostic Interface -->
+        <div class="dashboard-grid">
+            
+            <!-- Left Column: Tabs and Inputs Form -->
+            <section class="inputs-panel" aria-labelledby="inputs-panel-title">
+                <h2 class="sr-only" id="inputs-panel-title">Patient Clinical Parameter Form</h2>
+                
+                <div class="tabs-header" role="tablist">
+                    <button class="tab-btn active" id="tab-vitals" role="tab" aria-selected="true" aria-controls="panel-vitals">Vitals</button>
+                    <button class="tab-btn" id="tab-urinalysis" role="tab" aria-selected="false" aria-controls="panel-urinalysis">Urinalysis</button>
+                    <button class="tab-btn" id="tab-blood" role="tab" aria-selected="false" aria-controls="panel-blood">Blood Chemistry</button>
+                    <button class="tab-btn" id="tab-hematology" role="tab" aria-selected="false" aria-controls="panel-hematology">Hematology</button>
+                    <button class="tab-btn" id="tab-history" role="tab" aria-selected="false" aria-controls="panel-history">History & Metabolic</button>
+                </div>
+
+                <form id="diagnostic-form">
+                    
+                    <!-- TAB 1: VITALS -->
+                    <div class="tab-content active" id="panel-vitals" role="tabpanel" aria-labelledby="tab-vitals">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label for="input-age">Age (Years)</label>
+                                <input type="number" id="input-age" class="input-field" min="20" max="90" placeholder="e.g. 45" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="select-gender">Gender</label>
+                                <select id="select-gender" class="input-field" required>
+                                    <option value="1">Male</option>
+                                    <option value="0">Female</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-bmi">BMI (kg/m²)</label>
+                                <input type="number" id="input-bmi" class="input-field" min="15" max="50" placeholder="e.g. 24" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-systolic-bp">Systolic BP (mmHg)</label>
+                                <input type="number" id="input-systolic-bp" class="input-field" min="80" max="200" placeholder="e.g. 120" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-diastolic-bp">Diastolic BP (mmHg)</label>
+                                <input type="number" id="input-diastolic-bp" class="input-field" min="50" max="130" placeholder="e.g. 80" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-heart-rate">Heart Rate (bpm)</label>
+                                <input type="number" id="input-heart-rate" class="input-field" min="50" max="120" placeholder="e.g. 72" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 2: URINALYSIS -->
+                    <div class="tab-content" id="panel-urinalysis" role="tabpanel" aria-labelledby="tab-urinalysis">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label for="input-urine-specific-gravity">Specific Gravity</label>
+                                <input type="number" id="input-urine-specific-gravity" class="input-field" step="0.001" min="1.000" max="1.035" placeholder="e.g. 1.017" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-urine-albumin">Urine Albumin (mg/dL)</label>
+                                <input type="number" id="input-urine-albumin" class="input-field" min="0" max="1000" placeholder="e.g. 15" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-urine-protein">Urine Protein (mg/dL)</label>
+                                <input type="number" id="input-urine-protein" class="input-field" min="0" max="500" placeholder="e.g. 10" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-acr">Albumin-Creatinine Ratio (mg/g)</label>
+                                <input type="number" id="input-acr" class="input-field" min="0" max="1200" placeholder="e.g. 20" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 3: BLOOD CHEMISTRY -->
+                    <div class="tab-content" id="panel-blood" role="tabpanel" aria-labelledby="tab-blood">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label for="input-sc">Serum Creatinine (mg/dL)</label>
+                                <input type="number" id="input-sc" class="input-field" step="0.1" min="0.0" max="10.0" placeholder="e.g. 1.0" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-bu">Blood Urea Nitrogen (mg/dL)</label>
+                                <input type="number" id="input-bu" class="input-field" min="5" max="150" placeholder="e.g. 15" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-sodium">Sodium (mEq/L)</label>
+                                <input type="number" id="input-sodium" class="input-field" min="100" max="160" placeholder="e.g. 140" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-potassium">Potassium (mEq/L)</label>
+                                <input type="number" id="input-potassium" class="input-field" step="0.1" min="1.0" max="10.0" placeholder="e.g. 4.0" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-calcium">Calcium (mg/dL)</label>
+                                <input type="number" id="input-calcium" class="input-field" step="0.1" min="5.0" max="15.0" placeholder="e.g. 9.5" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-phosphorus">Phosphorus (mg/dL)</label>
+                                <input type="number" id="input-phosphorus" class="input-field" step="0.1" min="1.0" max="10.0" placeholder="e.g. 3.0" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-chloride">Chloride (mEq/L)</label>
+                                <input type="number" id="input-chloride" class="input-field" min="80" max="120" placeholder="e.g. 102" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-bicarbonate">Bicarbonate (mEq/L)</label>
+                                <input type="number" id="input-bicarbonate" class="input-field" min="5" max="40" placeholder="e.g. 24" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: HEMATOLOGY -->
+                    <div class="tab-content" id="panel-hematology" role="tabpanel" aria-labelledby="tab-hematology">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label for="input-hemo">Hemoglobin (g/dL)</label>
+                                <input type="number" id="input-hemo" class="input-field" step="0.1" min="3.0" max="20.0" placeholder="e.g. 14.5" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-rbcc">Red Blood Cells (million/cmm)</label>
+                                <input type="number" id="input-rbcc" class="input-field" step="0.1" min="1.0" max="10.0" placeholder="e.g. 4.8" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-wbcc">White Blood Cells (cells/cumm)</label>
+                                <input type="number" id="input-wbcc" class="input-field" min="1000" max="30000" placeholder="e.g. 7000" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-platelets">Platelets (k/cumm)</label>
+                                <input type="number" id="input-platelets" class="input-field" min="50000" max="600000" placeholder="e.g. 250000" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-pcv">Packed Cell Volume (PCV %)</label>
+                                <input type="number" id="input-pcv" class="input-field" min="10" max="60" placeholder="e.g. 42" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TAB 5: HISTORY & METABOLIC -->
+                    <div class="tab-content" id="panel-history" role="tabpanel" aria-labelledby="tab-history">
+                        <div class="form-grid">
+                            <div class="input-group">
+                                <label for="input-bgr">Blood Glucose Random (mg/dL)</label>
+                                <input type="number" id="input-bgr" class="input-field" min="50" max="400" placeholder="e.g. 100" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-fasting-glucose">Fasting Glucose (mg/dL)</label>
+                                <input type="number" id="input-fasting-glucose" class="input-field" min="50" max="250" placeholder="e.g. 90" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-hba1c">HbA1c (%)</label>
+                                <input type="number" id="input-hba1c" class="input-field" step="0.1" min="3.0" max="15.0" placeholder="e.g. 5.4" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-cholesterol">Cholesterol (mg/dL)</label>
+                                <input type="number" id="input-cholesterol" class="input-field" min="100" max="400" placeholder="e.g. 180" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-triglycerides">Triglycerides (mg/dL)</label>
+                                <input type="number" id="input-triglycerides" class="input-field" min="50" max="500" placeholder="e.g. 130" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-serum-albumin">Serum Albumin (g/dL)</label>
+                                <input type="number" id="input-serum-albumin" class="input-field" step="0.1" min="1.0" max="6.0" placeholder="e.g. 4.2" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="input-total-protein">Total Protein (g/dL)</label>
+                                <input type="number" id="input-total-protein" class="input-field" step="0.1" min="3.0" max="10.0" placeholder="e.g. 7.0" required>
+                            </div>
+                            <div class="input-group">
+                                <label for="select-dm">Diabetes Mellitus</label>
+                                <select id="select-dm" class="input-field" required>
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="select-htn">Hypertension</label>
+                                <select id="select-htn" class="input-field" required>
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="select-smoking">Smoking Status</label>
+                                <select id="select-smoking" class="input-field" required>
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="select-family-history">Family History of Kidney Disease</label>
+                                <select id="select-family-history" class="input-field" required>
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-box">
+                        <button type="submit" id="btn-submit" class="btn btn-primary">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align: middle;">
+                                <polygon points="5 3 19 12 5 21 5 3"/>
+                            </svg>
+                            Run Diagnostic Prediction
+                        </button>
+                        <button type="button" id="btn-reset" class="btn btn-secondary">Reset Fields</button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- Right Column: Prediction Visualization Results -->
+            <section class="results-panel" aria-labelledby="results-panel-title">
+                <h2 class="sr-only" id="results-panel-title">Diagnostic Results</h2>
+                
+                <div class="results-card">
+                    <!-- Loading Spinner -->
+                    <div class="loader" id="results-loader"></div>
+                    
+                    <!-- Placeholder State -->
+                    <div class="placeholder-results" id="results-placeholder">
+                        <div class="placeholder-icon">
+                            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="16" x2="12" y2="12"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                        </div>
+                        <h2>Awaiting Evaluation</h2>
+                        <p>Fill in patient records manually or select one of the simulated patient presets above, then click 'Run Diagnostic Prediction' to view analysis.</p>
+                    </div>
+
+                    <!-- Dynamic Prediction Output View -->
+                    <div class="prediction-view" id="results-prediction-view">
+                        <div class="gauge-container">
+                            <svg class="gauge-svg" width="180" height="180" viewBox="0 0 180 180">
+                                <circle class="gauge-track" cx="90" cy="90" r="80"></circle>
+                                <circle class="gauge-fill" id="results-gauge-fill" cx="90" cy="90" r="80"></circle>
+                            </svg>
+                            <div class="gauge-percentage">
+                                <span class="percentage-val" id="results-percentage-value">0%</span>
+                                <span class="percentage-label">CKD Risk Score</span>
+                            </div>
+                        </div>
+
+                        <div class="status-summary">
+                            <div class="result-badge" id="results-risk-badge">Normal</div>
+                            <p class="statement" id="results-statement-text">Patient demonstrates normal markers.</p>
+                        </div>
+
+                        <div class="factors-section" id="results-factors-section">
+                            <h3>Key Contributing Risk Factors</h3>
+                            <div class="factors-container" id="results-factors-container">
+                                <!-- Dynamic factors appended here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>

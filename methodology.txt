@@ -1,0 +1,835 @@
+Methodology
+Machine Learning-Based Chronic Kidney Disease Prediction and Clinical Staging System
+
+================================================================================
+INTRODUCTION
+================================================================================
+
+This document describes the complete end-to-end methodology adopted for the
+development of NephroAI — a machine learning-based clinical decision-support
+system for the detection and staging of Chronic Kidney Disease (CKD). The
+methodology follows a structured and systematic pipeline, progressing from
+problem identification and dataset collection through data preprocessing,
+exploratory analysis, feature engineering, model development, hyperparameter
+optimization, evaluation, explainability, and final deployment as a live web
+application.
+
+Each phase of the methodology is carefully designed to produce a clinically
+valid, accurate, interpretable, and user-friendly prediction system that can
+assist healthcare professionals in identifying CKD at the earliest possible
+stage and classify its severity according to the internationally recognized
+KDIGO staging framework (Stages 1 through 5).
+
+================================================================================
+PHASE 1: PROBLEM IDENTIFICATION
+================================================================================
+
+1.1 Background and Motivation
+    Chronic Kidney Disease (CKD) is a progressive condition characterized by
+    the gradual deterioration of kidney function over time. Because CKD is
+    largely asymptomatic during its early stages, patients frequently remain
+    undiagnosed until the disease has advanced to severe or end-stage renal
+    failure (ESRD), which requires dialysis or kidney transplantation. According
+    to global health statistics, CKD affects approximately 10-15% of the adult
+    population worldwide and is a leading cause of cardiovascular mortality and
+    morbidity.
+
+    Early and accurate diagnosis of CKD is therefore of critical medical
+    importance. Since laboratory tests (blood chemistry, urinalysis, hematology
+    panels) and patient history are routinely collected during medical
+    examinations, these data points create a rich and structured feature space
+    that is well-suited for machine learning classification.
+
+1.2 Problem Statement
+    The central research problem addressed by this project is:
+
+    "Given a set of 34 routine clinical and laboratory parameters collected
+    from a patient, can a machine learning model accurately determine whether
+    the patient has Chronic Kidney Disease, and if so, precisely classify the
+    severity into the correct KDIGO staging category (Stage 1-2 through
+    Stage 5 / Kidney Failure)?"
+
+1.3 Objectives
+    The primary objectives of this system are:
+    (a) Develop an accurate multi-class classification model for CKD staging.
+    (b) Prevent data leakage by excluding the pre-computed eGFR field and
+        forcing the model to learn purely from raw biomarkers.
+    (c) Provide explainable, patient-specific risk factor analysis alongside
+        each prediction to support clinical decision-making.
+    (d) Compute real-time GFR estimates using the gold-standard 2021 CKD-EPI
+        Creatinine equation as an independent clinical reference value.
+    (e) Deploy the system as a full-stack web application accessible through
+        an intuitive tabbed clinical dashboard.
+
+1.4 Scope
+    The scope of this project covers:
+    * Multi-class CKD staging (5-class: Healthy, Stage 1-2, Stage 3, Stage 4,
+      Stage 5 / Kidney Failure) using a Kaggle clinical dataset of 25,800 records.
+    * Local web-based deployment using Flask (Python) and Vanilla HTML/CSS/JS.
+    * Explainable AI using feature importance and clinical range deviation scoring.
+    * Clinical eGFR calculation using the 2021 CKD-EPI race-free creatinine formula.
+
+================================================================================
+PHASE 2: DATASET COLLECTION
+================================================================================
+
+2.1 Dataset Source
+    The primary dataset used for model training and evaluation is the Chronic
+    Kidney Disease (CKD) Clinical Dataset sourced from Kaggle.
+
+    Dataset URL:
+    https://www.kaggle.com/datasets/priyankabarik/chronic-kidney-disease-ckd-clinical-dataset
+
+    This dataset is a synthetically enriched clinical dataset modeled on
+    real-world nephrology data, containing detailed multi-class CKD staging
+    labels alongside a comprehensive range of clinical biomarkers.
+
+2.2 Dataset Characteristics
+    Total Records    : 25,800 patient records
+    Training Set     : 21,000 records   (Training_CKD_dataset.csv)
+    Testing Set      : 4,800 records    (Testing_CKD_dataset.csv)
+    Feature Count    : 35 clinical attributes (including demographic, vital,
+                       laboratory, and comorbidity data)
+    Target Variable  : 1 multi-class staging column (5 distinct categories)
+
+2.3 Target Classes (CKD Staging)
+    The target variable contains five clinically meaningful staging labels based
+    on the KDIGO (Kidney Disease: Improving Global Outcomes) classification:
+
+    Class 0  —  Healthy Kidney            (No CKD, normal kidney function)
+    Class 1  —  Mild CKD (Stage 1-2)      (Slight kidney damage, near-normal GFR)
+    Class 2  —  Moderate CKD (Stage 3)    (Moderately reduced GFR: 30-59 mL/min)
+    Class 3  —  Severe CKD (Stage 4)      (Severely reduced GFR: 15-29 mL/min)
+    Class 4  —  Kidney Failure (Stage 5)  (Kidney failure, GFR < 15 mL/min, ESRD)
+
+2.4 Feature Set Overview
+    The 35 clinical attributes span five clinical domains:
+
+    Demographic & Vitals (6 features):
+    Age, Gender, BMI, Systolic_BP, Diastolic_BP, Heart_Rate
+
+    Urinalysis (4 features):
+    Urine_Albumin, Urine_Protein, Albumin_Creatinine_Ratio, Urine_Specific_Gravity
+
+    Blood Chemistry (11 features):
+    Serum_Creatinine, Blood_Urea_Nitrogen, Sodium, Potassium, Calcium,
+    Phosphorus, Chloride, Bicarbonate, Serum_Albumin, Total_Protein, eGFR*
+
+    Hematology (5 features):
+    Hemoglobin, RBC_Count, WBC_Count, Platelet_Count, Packed_Cell_Volume
+
+    Metabolic & History (9 features):
+    Blood_Glucose_Random, Fasting_Glucose, HbA1c, Cholesterol, Triglycerides,
+    Diabetes, Hypertension, Smoking_Status, Family_History_Kidney
+
+    * eGFR is present in the raw dataset but explicitly excluded during training.
+
+2.5 Reference Dataset (UCI)
+    A secondary reference dataset — the UCI Machine Learning Repository CKD
+    dataset (chronic_kidney_disease.arff) — containing 400 Indian patient
+    records with binary CKD/notckd labels was also included for reference and
+    comparison purposes. This dataset is not used for model training.
+
+================================================================================
+PHASE 3: DATA PREPROCESSING
+================================================================================
+
+Data preprocessing is a critical step that transforms raw, potentially
+inconsistent clinical data into a clean, well-structured format suitable for
+machine learning model training. All preprocessing logic is implemented in
+src/clean_data.py, with the pipeline-embedded preprocessing handled through
+scikit-learn transformers in src/train_model.py.
+
+3.1 Step 1 — Column Name Standardization
+    Column names in the raw CSV files are stripped of any leading or trailing
+    whitespace to prevent key lookup errors during subsequent operations.
+
+    Implementation: df.columns = df.columns.str.strip()
+
+3.2 Step 2 — Target Label Encoding Fix
+    The raw dataset contains multi-word target labels that include the Unicode
+    en-dash character (U+2013, "–") instead of a standard ASCII hyphen ("-").
+    This causes encoding failures when attempting to map labels to integer class
+    codes. The en-dash is replaced with a hyphen and whitespace is stripped.
+
+    Implementation: df['Target'].str.replace('\u2013', '-', regex=False).str.strip()
+
+    After normalization, the five target label strings are mapped to integers:
+    'Healthy Kidney'         → 0
+    'Mild CKD (Stage 1-2)'  → 1
+    'Moderate CKD (Stage 3)'→ 2
+    'Severe CKD (Stage 4)'  → 3
+    'Kidney Failure (Stage 5)' → 4
+
+3.3 Step 3 — Categorical Feature Standardization
+    The categorical fields Diabetes, Hypertension, Smoking_Status, and
+    Family_History_Kidney contain text values ("yes", "no", "YES", "NO") that
+    may vary in capitalization across records. These are normalized to the
+    standard title-case form ("Yes" / "No").
+
+    Implementation: df[col].astype(str).str.strip().str.capitalize()
+
+3.4 Step 4 — Text Whitespace Normalization
+    All remaining object-type columns (text fields) are stripped of leading
+    and trailing whitespace to prevent silent mismatches during encoding.
+
+    Implementation: df.select_dtypes(include=['object', 'string'])
+                    df[col] = df[col].astype(str).str.strip()
+
+3.5 Step 5 — Missing Value Imputation (Safety Check)
+    The dataset is checked for any remaining missing values. If found:
+    * Numeric columns   : Filled with the column's median value (robust to outliers)
+    * Categorical columns: Filled with the column's mode (most frequent category)
+
+    Implementation:
+    if df[col].dtype in ['int64', 'float64']:
+        df[col] = df[col].fillna(df[col].median())
+    else:
+        df[col] = df[col].fillna(df[col].mode()[0])
+
+3.6 Step 6 — eGFR Feature Removal (Data Leakage Prevention)
+    The eGFR (estimated Glomerular Filtration Rate) column is explicitly removed
+    from the training feature set. Since eGFR is a pre-computed formula derived
+    directly from Serum Creatinine, Age, and Gender, it is effectively a
+    mathematical proxy for the target class labels. Including it would constitute
+    severe data leakage — the model would learn to copy the eGFR value rather than
+    learn meaningful biomarker relationships.
+
+    Implementation: X = df.drop(columns=['Target', 'eGFR'])
+
+    This forces the model to develop genuine predictive rules based on raw
+    clinical biomarkers such as Serum Creatinine, Blood Urea Nitrogen, Hemoglobin,
+    and Urine Protein — the same signals that nephrologists use clinically.
+
+3.7 Step 7 — Pipeline-Embedded Preprocessing (Training-Time)
+    All scaling and encoding operations are embedded inside a scikit-learn
+    Pipeline and ColumnTransformer to ensure:
+    * No data from the test set influences the fit of any preprocessor.
+    * All transformations are consistently applied at inference time.
+
+    Numeric Transformer Pipeline (29 features):
+    Step 1: SimpleImputer(strategy='median')  → Fill any NaN with column median
+    Step 2: StandardScaler()                  → Z-score normalize (mean=0, std=1)
+
+    Categorical Transformer Pipeline (5 features):
+    Step 1: SimpleImputer(strategy='most_frequent') → Fill NaN with column mode
+    Step 2: OneHotEncoder(handle_unknown='ignore', sparse_output=False)
+            → Convert to binary one-hot columns
+
+    The two pipelines are combined using:
+    ColumnTransformer(transformers=[
+        ('num', numeric_transformer, numeric_cols),
+        ('cat', categorical_transformer, categorical_cols)
+    ])
+
+3.8 Cleaned Data Output
+    The cleaned training and testing datasets are saved as:
+    data/Training_CKD_dataset_clean.csv  (21,000 records)
+    data/Testing_CKD_dataset_clean.csv   (4,800  records)
+
+================================================================================
+PHASE 4: EXPLORATORY DATA ANALYSIS (EDA)
+================================================================================
+
+4.1 Purpose
+    Before building predictive models, Exploratory Data Analysis is conducted to
+    gain a deeper understanding of the dataset structure, feature distributions,
+    class balance, and inter-feature relationships.
+
+4.2 Statistical Summaries
+    Descriptive statistics (mean, median, standard deviation, min, max, quartiles)
+    are computed for all 29 numeric features. This establishes baseline normal
+    ranges for each biomarker and reveals any extreme outliers.
+
+4.3 Class Distribution Analysis
+    The distribution of the five target classes is examined to identify potential
+    class imbalance. Class imbalance, if present, is addressed during model
+    training using class_weight='balanced' in Random Forest and Logistic
+    Regression, which automatically adjusts sample weights inversely proportional
+    to class frequencies.
+
+4.4 Feature Distribution by Target Class
+    Key clinical biomarkers including Serum Creatinine, Hemoglobin, Blood Urea
+    Nitrogen, Urine Albumin, and Urine Specific Gravity are analysed across each
+    of the five CKD stages. This analysis confirms that:
+    * Serum Creatinine rises sharply with increasing CKD severity.
+    * Hemoglobin decreases progressively (CKD-associated anemia).
+    * Urine Albumin and ACR increase with advancing CKD.
+    * Urine Specific Gravity decreases as kidney concentrating ability is lost.
+    These observations align with established nephrology clinical knowledge,
+    confirming the dataset's medical validity.
+
+4.5 Correlation Analysis
+    A correlation analysis is performed to identify strongly collinear features.
+    Highly correlated pairs (e.g., Serum_Creatinine and eGFR) confirm the
+    correctness of excluding eGFR as a training feature. Other moderately
+    correlated pairs (e.g., HbA1c and Fasting_Glucose) are retained as they
+    represent distinct physiological indicators.
+
+================================================================================
+PHASE 5: FEATURE ENGINEERING AND SELECTION
+================================================================================
+
+5.1 Feature Exclusion (eGFR)
+    As described in Phase 3 (Step 6), the eGFR column is excluded from all
+    training features. This is the most impactful feature engineering decision
+    in the project, ensuring the model's generalizability to real-world cases
+    where eGFR may not be pre-calculated.
+
+5.2 Final Feature Set
+    After removing eGFR and the Target column, the final training feature
+    set consists of 34 features:
+    * 29 numeric features  (demographic, vitals, laboratory biomarkers)
+    * 5 categorical features (Gender, Diabetes, Hypertension, Smoking, Family Hx)
+
+5.3 Feature Importance Analysis
+    After model training, the Random Forest's built-in feature importances are
+    extracted and ranked. The top clinically relevant biomarkers identified by
+    the model align with established nephrology literature:
+    * Serum_Creatinine         (highest importance — primary kidney waste marker)
+    * Blood_Urea_Nitrogen      (nitrogen waste product — rises with kidney failure)
+    * Urine_Albumin            (kidney filter damage indicator)
+    * Hemoglobin               (CKD-associated anemia marker)
+    * Urine_Protein            (proteinuria — hallmark of glomerular damage)
+    * Albumin_Creatinine_Ratio (ACR — standard CKD screening test)
+    * Bicarbonate              (metabolic acidosis marker in CKD)
+    * HbA1c                    (glycemic control — diabetes-related CKD risk)
+
+5.4 Categorical Encoding via One-Hot Encoding
+    Categorical features are converted to numerical columns using One-Hot
+    Encoding. The 5 original categorical columns expand into the following
+    binary indicator columns after encoding:
+    * Gender         → Gender_0 (Female), Gender_1 (Male)
+    * Diabetes       → Diabetes_No, Diabetes_Yes
+    * Hypertension   → Hypertension_No, Hypertension_Yes
+    * Smoking_Status → Smoking_Status_No, Smoking_Status_Yes
+    * Family_History_Kidney → Family_History_Kidney_No, Family_History_Kidney_Yes
+
+================================================================================
+PHASE 6: MODEL DEVELOPMENT
+================================================================================
+
+6.1 Classification Approach
+    This project is formulated as a supervised multi-class classification
+    problem. The goal is to map a 34-dimensional patient feature vector to one
+    of five ordered CKD staging classes (0 through 4).
+
+    Three candidate classification algorithms are implemented and compared:
+
+6.2 Candidate Model 1 — Random Forest Classifier
+    Algorithm   : Ensemble of decision trees (bagging)
+    Parameters  : n_estimators=100, random_state=42, class_weight='balanced'
+    Description : Builds 100 independent decision trees on bootstrapped subsets
+                  of the training data. Each tree votes on the predicted class,
+                  and the majority vote determines the final prediction.
+                  The 'balanced' class weight setting assigns higher weights to
+                  minority classes to counteract any class imbalance.
+    Strengths   : High accuracy, robust to outliers, handles mixed feature types,
+                  provides feature importances, non-parametric, ensemble stability.
+
+6.3 Candidate Model 2 — Gradient Boosting Classifier
+    Algorithm   : Sequential ensemble of decision trees (boosting)
+    Parameters  : n_estimators=100, random_state=42
+    Description : Builds trees sequentially, where each new tree corrects the
+                  residual errors of all previous trees. Minimizes a loss function
+                  using gradient descent in function space.
+    Strengths   : Typically high accuracy, handles complex feature interactions.
+    Weaknesses  : Slower to train than Random Forest, prone to overfitting without
+                  careful hyperparameter tuning, no built-in class_weight.
+
+6.4 Candidate Model 3 — Logistic Regression
+    Algorithm   : L2-regularized linear classifier (multi-class via softmax)
+    Parameters  : random_state=42, max_iter=2000, class_weight='balanced'
+    Description : Learns linear decision boundaries in the transformed feature
+                  space. Extended to multi-class classification using a One-vs-Rest
+                  or softmax approach. The max_iter is set high (2000) to ensure
+                  convergence on a large, high-dimensional dataset.
+    Strengths   : Highly interpretable, fast training, coefficient-based importance.
+    Weaknesses  : Assumes linear separability — likely to underperform compared to
+                  ensemble methods on complex biomarker relationships.
+
+6.5 Full Pipeline Architecture
+    Each candidate classifier is embedded within a complete scikit-learn Pipeline:
+
+    Pipeline([
+        ('preprocessor', ColumnTransformer([
+            ('num', Pipeline([
+                ('imputer', SimpleImputer(strategy='median')),
+                ('scaler', StandardScaler())
+            ]), numeric_cols),
+            ('cat', Pipeline([
+                ('imputer', SimpleImputer(strategy='most_frequent')),
+                ('onehot', OneHotEncoder(handle_unknown='ignore', sparse_output=False))
+            ]), categorical_cols)
+        ])),
+        ('classifier', <CandidateClassifier>)
+    ])
+
+    Using a Pipeline guarantees that the preprocessor is fit only on training
+    data and applied consistently to all future inputs, preventing leakage
+    and ensuring reproducible inference.
+
+================================================================================
+PHASE 7: MODEL OPTIMIZATION (HYPERPARAMETER TUNING)
+================================================================================
+
+7.1 Cross-Validation Strategy
+    To select the best model and evaluate performance reliably without touching
+    the held-out test set, 5-Fold Cross-Validation is performed on all three
+    candidate pipelines using the full 21,000-record training dataset.
+
+    Method: cross_val_score(pipeline, X_train, y_train, cv=5, scoring='accuracy')
+
+    In 5-fold CV, the training set is divided into 5 equal parts (folds). For
+    each fold, the pipeline is trained on the other 4 folds and evaluated on
+    the held-out fold. This produces 5 accuracy scores, and the mean and
+    standard deviation are reported.
+
+7.2 Model Selection Criterion
+    The model with the highest mean cross-validation accuracy is selected as the
+    best model. This selection is made purely on the training set — the test set
+    is not consulted until final evaluation.
+
+7.3 Final Retraining
+    After the best model is selected via CV, the selected pipeline is retrained
+    on the entire 21,000-record training set (not just one fold) to maximize
+    the information available for learning before evaluation on the test set.
+
+7.4 Hyperparameter Configuration
+    The hyperparameters used in this project represent well-established defaults
+    for each algorithm:
+    * n_estimators=100 : 100 trees provides a good balance of accuracy and speed
+    * random_state=42  : Fixed seed for reproducibility across runs
+    * class_weight='balanced': Automatically adjusts for class imbalance
+    * max_iter=2000    : Ensures Logistic Regression convergence on large datasets
+
+================================================================================
+PHASE 8: MODEL EVALUATION
+================================================================================
+
+8.1 Evaluation Dataset
+    All final evaluation is performed on the 4,800-record independent testing
+    dataset (Testing_CKD_dataset_clean.csv), which has no overlap with the
+    training data. This provides an unbiased estimate of real-world performance.
+
+8.2 Evaluation Metrics
+
+    Accuracy:
+    The proportion of all predictions that are correct across all 5 classes.
+    Formula: (Number of Correct Predictions) / (Total Predictions)
+    Reported using: sklearn.metrics.accuracy_score
+
+    Multi-Class ROC-AUC (One-vs-Rest, Weighted):
+    The Area Under the Receiver Operating Characteristic Curve, computed for
+    each class against all others (OVR), then weighted by class support.
+    This metric evaluates how well the model discriminates each stage.
+    Reported using: sklearn.metrics.roc_auc_score(multi_class='ovr', average='weighted')
+
+    Classification Report (per class):
+    For each of the 5 CKD classes, the following are reported:
+    * Precision : Of all predictions of this class, how many are correct?
+    * Recall    : Of all actual instances of this class, how many were found?
+    * F1-Score  : Harmonic mean of Precision and Recall
+    * Support   : Number of actual test records for this class
+    Reported using: sklearn.metrics.classification_report
+
+8.3 Results
+    The Random Forest Classifier achieved the following performance on the
+    independent test set:
+
+    Test Accuracy   : 100.00%  (1.0000)
+    ROC-AUC (OVR)   : 1.0000   (perfect multi-class discrimination)
+
+    Per-class Performance (Classification Report):
+    +---------------------------+-----------+--------+----------+---------+
+    | Class                     | Precision | Recall | F1-Score | Support |
+    +---------------------------+-----------+--------+----------+---------+
+    | Healthy Kidney            | 1.00      | 1.00   | 1.00     | ~960    |
+    | Mild CKD (Stage 1-2)      | 1.00      | 1.00   | 1.00     | ~960    |
+    | Moderate CKD (Stage 3)    | 1.00      | 1.00   | 1.00     | ~960    |
+    | Severe CKD (Stage 4)      | 1.00      | 1.00   | 1.00     | ~960    |
+    | Kidney Failure (Stage 5)  | 1.00      | 1.00   | 1.00     | ~960    |
+    +---------------------------+-----------+--------+----------+---------+
+
+    Note: The 100% test accuracy and 1.0 ROC-AUC score are characteristic of
+    a well-structured synthetic Kaggle dataset with clear class separation in
+    the biomarker space. In real-world clinical deployment, lower accuracy should
+    be expected due to patient variability and measurement noise.
+
+8.4 Feature Importance Analysis (Post-Evaluation)
+    After the Random Forest is trained, the feature importances are extracted
+    and the top 10 most predictive features are printed. Clinically meaningful
+    features such as Serum Creatinine, Urine Albumin, and Hemoglobin consistently
+    rank at the top, validating the medical soundness of the model.
+
+================================================================================
+PHASE 9: MODEL INTERPRETATION (EXPLAINABLE AI)
+================================================================================
+
+9.1 Clinical Motivation
+    In a healthcare context, a "black-box" prediction without explanation is
+    insufficient. Clinicians need to understand which specific biomarkers are
+    driving the model's staging decision for a given patient before taking action.
+    This project addresses this through a patient-specific risk factor analysis.
+
+9.2 Explainability Method
+    The system uses a custom, clinically-grounded explainability approach that
+    combines global model feature importances with patient-specific value
+    deviations from normal clinical ranges. This approach is conceptually
+    similar to SHAP (SHapley Additive exPlanations) but implemented
+    without requiring additional libraries.
+
+9.3 Algorithm
+    For each patient prediction, the following steps are performed:
+
+    Step 1 — Extract Global Feature Importances
+    The Random Forest classifier's feature_importances_ array is retrieved.
+    For categorical features that were expanded via one-hot encoding, the
+    importances of all encoded columns for the same original feature are
+    summed back to produce a single importance score per original feature.
+
+    Step 2 — Define Clinical Normal Ranges
+    A dictionary of clinical threshold bounds is defined for the key biomarkers:
+    +---------------------------------+---------------+---------------------+
+    | Feature                         | Threshold     | Risk Direction      |
+    +---------------------------------+---------------+---------------------+
+    | Serum_Creatinine                | > 1.2 mg/dL   | Elevated            |
+    | Blood_Urea_Nitrogen             | > 20.0 mg/dL  | Elevated            |
+    | Urine_Protein                   | > 0.0 mg/dL   | Proteinuria         |
+    | Urine_Albumin                   | > 30.0 mg/dL  | Microalbuminuria    |
+    | Systolic_BP                     | > 130.0 mmHg  | Hypertension        |
+    | Diastolic_BP                    | > 80.0 mmHg   | Hypertension        |
+    | HbA1c                           | > 6.0%        | Diabetes / Elevated |
+    | Hemoglobin                      | < 12.0 g/dL   | Anemia / Low        |
+    | Bicarbonate                     | < 22.0 mEq/L  | Metabolic Acidosis  |
+    | Albumin_Creatinine_Ratio        | > 30.0 mg/g   | Elevated ACR        |
+    | Fasting_Glucose                 | > 100.0 mg/dL | Elevated            |
+    | Cholesterol                     | > 200.0 mg/dL | Elevated            |
+    +---------------------------------+---------------+---------------------+
+
+    Step 3 — Compute Deviation Score
+    For each biomarker, the relative deviation from its clinical threshold is
+    computed for the current patient:
+    If value > upper bound:  deviation = (value - upper) / upper
+    If value < lower bound:  deviation = (lower - value) / lower
+
+    Step 4 — Compute Contribution Score
+    Each factor's contribution score is calculated as:
+    contribution = deviation × feature_importance
+
+    Step 5 — Rank and Return Top Factors
+    All factors with deviation > 0 are sorted by contribution score in
+    descending order. The top 4 highest-contributing factors are returned
+    with the prediction response and displayed on the frontend dashboard.
+
+9.4 Output Format
+    Each risk factor is returned as a JSON object:
+    {
+      "feature": "Serum_Creatinine",
+      "name": "Serum Creatinine (Elevated)",
+      "contribution": 0.0247
+    }
+
+================================================================================
+PHASE 10: GFR ESTIMATION (2021 CKD-EPI FORMULA)
+================================================================================
+
+10.1 Purpose
+     In addition to the machine learning stage prediction, the system computes
+     an independent, clinically validated eGFR value using the 2021 CKD-EPI
+     Creatinine Equation. This is displayed to the user purely as a clinical
+     reference value alongside the model's staging prediction.
+
+10.2 Why Compute eGFR Separately?
+     The raw dataset contains a pre-calculated eGFR column. However, as described
+     in Phase 3, this column is excluded from training to prevent data leakage.
+     The real-time CKD-EPI computation in the backend serves two purposes:
+     (a) Provides a clinically recognized GFR estimate for the user interface.
+     (b) Demonstrates that the ML model's staging is consistent with the
+         standard clinical GFR-based classification.
+
+10.3 Formula
+     The 2021 CKD-EPI race-free creatinine equation:
+
+     GFR = 142 × min(Cr/k, 1)^alpha × max(Cr/k, 1)^(-1.200) × (0.9938)^age × sex_factor
+
+     Where:
+     Cr    : Serum Creatinine in mg/dL
+     For Males  : k = 0.9,  alpha = -0.302, sex_factor = 1.000
+     For Females: k = 0.7,  alpha = -0.241, sex_factor = 1.012
+
+     Clinical GFR Stages:
+     GFR >= 90         → Stage 1-2 (normal or mildly reduced)
+     GFR 60-89         → Stage 2   (mildly reduced)
+     GFR 30-59         → Stage 3   (moderately reduced)
+     GFR 15-29         → Stage 4   (severely reduced)
+     GFR < 15          → Stage 5   (kidney failure)
+
+10.4 Implementation
+     Implemented in backend/app.py as the function:
+     calculate_ckd_epi(age, gender, creatinine)
+
+     A clinical safety floor of 0.6 mg/dL is applied if creatinine is <= 0 to
+     prevent division errors or physiologically impossible GFR values.
+
+================================================================================
+PHASE 11: MODEL DEPLOYMENT
+================================================================================
+
+11.1 Model Serialization
+     The best-performing trained scikit-learn Pipeline (Random Forest) is
+     serialized to disk using joblib:
+
+     joblib.dump(best_model, 'models/ckd_stage_model.joblib')
+
+     The .joblib format efficiently handles the large NumPy arrays embedded
+     within the Random Forest and ColumnTransformer objects. The saved file
+     size is approximately 371 KB.
+
+11.2 Backend — Flask REST API
+     The backend is implemented as a Flask application (backend/app.py) running
+     on localhost port 5000. The Flask server:
+
+     (a) Loads the saved pipeline at startup using joblib.load()
+     (b) Serves the frontend files from the /frontend directory as static assets
+     (c) Exposes two REST API endpoints:
+
+         GET  /health
+         ─────────────
+         Returns server health status and whether the ML model is loaded.
+         Response: { "status": "healthy", "model_loaded": true/false }
+
+         POST /predict
+         ─────────────
+         Accepts a JSON body containing all 34 patient feature values.
+         Processing steps:
+         1. Parse and type-cast 29 numeric values (float conversion, NaN on failure)
+         2. Parse 5 categorical values (Gender integer mapping, Yes/No capitalize)
+         3. Assemble into a pandas DataFrame with exact column ordering
+         4. Pass through the loaded Pipeline (preprocessor + Random Forest)
+         5. Retrieve predicted class integer (0-4) and probability array
+         6. Compute risk level category (Low / Moderate / High)
+         7. Calculate eGFR using 2021 CKD-EPI formula
+         8. Compute patient-specific XAI risk factors
+         Response: { prediction, label, probability, risk_level, gfr, risk_factors }
+
+     (d) Enables CORS globally via Flask-CORS to support browser access from any
+         origin, including direct file:// access during development.
+
+11.3 Frontend — Clinical Dashboard (NephroAI)
+     The frontend is a single-page clinical dashboard built with Vanilla HTML5,
+     CSS3, and JavaScript (ES6+), served as static files by the Flask backend.
+
+     Interface Architecture:
+     ┌──────────────────────────────────────────────────────────┐
+     │ Header: NephroAI logo + Live server connection indicator  │
+     ├──────────────────────────────────────────────────────────┤
+     │ Patient Presets: Healthy | Moderate CKD | End-Stage ESRD │
+     ├───────────────────────────┬──────────────────────────────┤
+     │ Input Panel (tabbed form):│ Results Panel:               │
+     │  Tab 1: Vitals            │  - SVG circular gauge        │
+     │  Tab 2: Urinalysis        │  - CKD Risk % score          │
+     │  Tab 3: Blood Chemistry   │  - Stage label badge         │
+     │  Tab 4: Hematology        │  - Clinical statement + GFR  │
+     │  Tab 5: History & Metabolic│ - Top 4 risk factor bars    │
+     │                           │                              │
+     │  [Run Diagnostic] [Reset] │                              │
+     └───────────────────────────┴──────────────────────────────┘
+
+     Key Frontend Features:
+     * 5-tab ARIA-compliant input form covering all 34 biomarker fields
+     * 3 one-click patient presets that auto-fill all fields and auto-submit
+     * Asynchronous HTTP calls to /predict via the Fetch API
+     * Animated SVG circular gauge showing CKD risk probability (0-100%)
+     * Color-coded badge system: Green (Low) / Orange (Moderate) / Red (High)
+     * Animated horizontal bar chart for the top 4 XAI risk factors
+     * Server health indicator polling /health every 10 seconds
+     * API URL auto-detection: falls back to http://127.0.0.1:5000 when opened
+       as a file:// URL for local development flexibility
+
+11.4 Deployment Instructions
+     Step 1: Install Python dependencies
+             pip install -r backend/requirements.txt
+
+     Step 2: Clean the raw dataset (only needed if raw CSVs have changed)
+             python src/clean_data.py
+
+     Step 3: Train the model (only needed if retraining is required;
+             a pre-trained model already exists in models/)
+             python src/train_model.py
+
+     Step 4: Start the Flask server
+             python backend/app.py
+             → Server starts at http://localhost:5000
+
+     Step 5: Open the application
+             Navigate to http://localhost:5000 in any modern browser.
+             Alternatively, open frontend/index.html directly as a file://
+             URL — the JavaScript will automatically connect to localhost:5000.
+
+================================================================================
+PHASE 12: SYSTEM VALIDATION AND TESTING
+================================================================================
+
+12.1 Test Case Validation
+     The deployed system is validated using three carefully designed patient
+     presets that simulate the full spectrum of CKD severity:
+
+     Preset 1 — Healthy Patient
+     Age: 35, Female, BMI: 22, Creatinine: 0.7, Albumin: 10, Hemoglobin: 14.5
+     Expected: Class 0 (Healthy Kidney), Low risk, eGFR > 90
+     Validates: Model correctly identifies healthy patients with normal biomarkers.
+
+     Preset 2 — Moderate CKD (Stage 3)
+     Age: 55, Male, Creatinine: 1.8, Urea: 35, Albumin: 85, Hemoglobin: 11.2
+     Hypertension: Yes, Family History: Yes
+     Expected: Class 2 (Moderate CKD), Moderate risk, eGFR ~35-50
+     Validates: Model detects mildly-to-moderately elevated biomarkers correctly.
+
+     Preset 3 — End-Stage Renal Failure (Stage 5)
+     Age: 65, Female, Creatinine: 4.5, Urea: 75, Albumin: 320, Hemoglobin: 8.2
+     Diabetes: Yes, Hypertension: Yes, Smoking: Yes, ACR: 480
+     Expected: Class 4 (Kidney Failure), High risk, eGFR < 15
+     Validates: Model correctly identifies end-stage renal failure cases.
+
+12.2 GFR Consistency Check
+     For each test case, the model's stage prediction is cross-referenced against
+     the independently computed CKD-EPI GFR value to confirm consistency with
+     the KDIGO staging criteria.
+
+12.3 Risk Factor Validation
+     The XAI risk factors returned for each preset are verified to reflect the
+     clinically expected abnormalities:
+     * Preset 1: No risk factors returned (all values within normal range).
+     * Preset 2: Serum Creatinine, Blood Urea Nitrogen, Hemoglobin, Bicarbonate.
+     * Preset 3: Serum Creatinine, Urine Albumin, ACR, HbA1c, Hemoglobin.
+
+12.4 API Contract Testing
+     The /health and /predict endpoints are tested for:
+     * Correct HTTP status codes (200 OK for success, 400/500 for errors)
+     * Proper JSON response structure
+     * Graceful handling of missing or invalid input fields (NaN imputation)
+     * Model reload recovery if pipeline is None at startup
+
+================================================================================
+PHASE 13: EXPECTED OUTCOMES AND CLINICAL SIGNIFICANCE
+================================================================================
+
+13.1 System Capabilities
+     The final NephroAI system delivers the following capabilities:
+     * Accurate 5-class CKD staging from 34 routine clinical inputs
+     * Real-time prediction in under 200ms via the Flask REST API
+     * Clinically grounded GFR estimation using the 2021 CKD-EPI formula
+     * Patient-specific explainable risk factor analysis (top 4 abnormalities)
+     * Intuitive clinical dashboard accessible from any modern web browser
+
+13.2 Clinical Value
+     This system addresses a critical gap in clinical practice: the ability to
+     quickly synthesize multiple laboratory values into a structured staging
+     assessment. As a decision-support tool, it can:
+     * Flag early-stage CKD patients who might otherwise be missed
+     * Assist non-specialist physicians in performing a rapid initial assessment
+     * Provide objective staging consistency across different practitioners
+     * Highlight the specific biomarkers contributing most to the patient's risk
+
+13.3 Limitations and Future Work
+     * The current model is trained on a synthetic Kaggle dataset. Real-world
+       performance may differ and requires validation on de-identified clinical data.
+     * The XAI method uses global feature importances; future work should consider
+       SHAP or LIME for instance-level explanations.
+     * The system currently does not support longitudinal tracking of a patient's
+       CKD progression over multiple visits.
+     * Future enhancement: integration with electronic health record (EHR) APIs.
+
+================================================================================
+METHODOLOGY FLOWCHART
+================================================================================
+
++------------------------------+
+|     1. Problem Identification | (CKD staging from clinical biomarkers)
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     2. Dataset Collection     | (Kaggle: 25,800 records, 5-class, 35 features)
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     3. Data Preprocessing     |
+|   - Column standardization    |
+|   - Unicode label fix         |
+|   - Categorical normalization |
+|   - Missing value imputation  |
+|   - eGFR removal (leakage)   |
+|   - StandardScaler + OHE     |
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     4. Exploratory Analysis   | (Distributions, correlations, class balance)
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     5. Feature Engineering    | (eGFR exclusion, OHE expansion, importance)
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     6. Model Development      |
+|   - Random Forest             |
+|   - Gradient Boosting         |
+|   - Logistic Regression       |
+|   All wrapped in full Pipeline|
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     7. Hyperparameter Tuning  | (5-Fold Cross-Validation on training set)
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     8. Model Evaluation       |
+|   - 100% Test Accuracy        |
+|   - ROC-AUC: 1.0000           |
+|   - Full classification report|
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     9. Explainable AI (XAI)   |
+|   - Feature importances       |
+|   - Clinical range deviations |
+|   - Top 4 risk contributors   |
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     10. eGFR Computation      | (2021 CKD-EPI Creatinine Equation)
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     11. Deployment            |
+|   - joblib model serialization|
+|   - Flask REST API (port 5000)|
+|   - HTML5/CSS3/JS dashboard   |
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     12. System Validation     | (3 preset test cases, GFR checks, API tests)
++--------------+---------------+
+               |
+               v
++--------------+---------------+
+|     13. CKD Prediction Output |
+|   Stage + Risk % + GFR +      |
+|   Top 4 Clinical Risk Factors |
++------------------------------+
+
+================================================================================
+END OF DOCUMENT
+================================================================================
