@@ -180,8 +180,11 @@ def predict():
                 importances = np.abs(clf.coef_[0])
                 
             if importances is not None:
-                cat_encoder = preprocessor.named_transformers_['cat'].named_steps['onehot']
-                encoded_cat_features = cat_encoder.get_feature_names_out(CATEGORICAL_COLS).tolist()
+                try:
+                    cat_encoder = preprocessor.named_transformers_['cat'].named_steps['onehot']
+                    encoded_cat_features = cat_encoder.get_feature_names_out().tolist()
+                except Exception:
+                    encoded_cat_features = []
                 
                 # Weight Base Features
                 base_importances = {}
